@@ -1,6 +1,7 @@
 import { BadRequestException, Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
+import { v4 as uuid } from 'uuid';
 
 interface User {
     userId: string;
@@ -23,7 +24,7 @@ export class AuthService {
         const salt = await bcrypt.genSalt();
 
         const user = {
-            userId: Math.random().toString(36).substring(2, 15),
+            userId: uuid(),
             email,
             password: await bcrypt.hash(password, salt),
             roles,
@@ -31,7 +32,6 @@ export class AuthService {
 
         users.push(user);
 
-        console.log('signed up:', user);
         const { password: _, ...result } = user;
         return result;
     }
@@ -48,8 +48,20 @@ export class AuthService {
         }
 
         const payload = { username: user.email, sub: user.userId, roles: user.roles };
+       
+        const accessToken = this.jwtService.sign(
+            {...payload, type: 'access'},
+            { expiresIn: '60s' }
+        )
+
+        const refreshToken = this.jwtService.sign(
+            {...payload, type: 'refresh'},
+            { expiresIn: '1h' }
+        )
+        
         return {
-            acces_token: await this.jwtService.signAsync(payload), 
+            accessToken,
+            refreshToken, 
         }
     }
 
