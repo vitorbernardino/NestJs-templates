@@ -16,4 +16,10 @@ export class AuthController {
     const { email, password } = body;
     return await this.authService.SignIn(email, password);
   }
+
+  @Post('refresh')
+  refresh(@Body() body: any) {
+    const { refreshToken } = body;
+    return  this.authService.refresh(refreshToken);
+  }
 }

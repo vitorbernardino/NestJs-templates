@@ -8,8 +8,10 @@ interface User {
     email: string;
     password: string;
     roles: string[];
+    refreshToken?: string;
 }
 const users: User[] = [];
+const refreshTokens: any = [];
 
 @Injectable()
 export class AuthService {
@@ -58,6 +60,8 @@ export class AuthService {
             {...payload, type: 'refresh'},
             { expiresIn: '1h' }
         )
+
+        refreshTokens.push( {value: refreshToken} );
         
         return {
             accessToken,
@@ -65,4 +69,40 @@ export class AuthService {
         }
     }
 
+    async refresh(refreshToken: string) {
+        const storedToken = refreshTokens.find(token => token.value === refreshToken);
+
+        if (!storedToken) {
+            throw new UnauthorizedException('Invalid refresh token');
+        }
+
+        const payload = this.jwtService.verify(refreshToken);
+        if(payload.type !== 'refresh') {
+            throw new UnauthorizedException('Invalid refresh token');
+        }
+        const user = users.find(user => user.userId === payload.sub);
+
+        if (!user) {
+            throw new UnauthorizedException('Invalid refresh token');
+        }
+
+        const newPayload = { username: user.email, sub: user.userId, roles: user.roles };
+       
+        const newAccessToken = this.jwtService.sign(
+            {...newPayload, type: 'access'},
+            { expiresIn: '60s' }
+        )
+
+        const newRefreshToken = this.jwtService.sign(
+            {...newPayload, type: 'refresh'},
+            { expiresIn: '1h' }
+        )
+
+        storedToken.value = newRefreshToken;
+        
+        return {
+            accessToken: newAccessToken,
+            refreshToken: newRefreshToken, 
+        }
+    }
 }
